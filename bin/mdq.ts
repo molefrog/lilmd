@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { run } from "../src/cli";
 
 const result = run(process.argv.slice(2));

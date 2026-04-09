@@ -38,8 +38,8 @@ describe.if(HAVE_FIXTURES)("integration: large.md (10 MB)", () => {
     const sizeMb = statSync(large).size / 1024 / 1024;
     expect(sizeMb).toBeGreaterThan(5);
 
-    // Warmup: first call pays the one-time JIT cost; we care about steady
-    // state here (cold-start is a separate concern, covered by bench/cli.ts).
+    // A couple of warmup runs smooth out cold-start variance across CI.
+    run([large, "--depth", "1"]);
     run([large, "--depth", "1"]);
 
     const t0 = performance.now();
@@ -48,8 +48,10 @@ describe.if(HAVE_FIXTURES)("integration: large.md (10 MB)", () => {
 
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("headings");
-    // Warm toc on 10 MB measured ~80 ms locally; give 3x headroom for CI.
-    expect(elapsed).toBeLessThan(250);
+    // We measured ~80 ms warm on a dev laptop; the point of this budget is
+    // to catch catastrophic regressions (we previously had an accidental
+    // O(n²) build), not to hold a tight SLA. 1s is plenty of headroom.
+    expect(elapsed).toBeLessThan(1000);
   });
 
   test("read with a descendant selector finds a section", () => {

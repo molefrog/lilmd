@@ -5,13 +5,29 @@
   "type": "module",
   "private": true,
   "bin": {
-    "mdq": "./bin/mdq.ts"
+    "mdq": "./dist/mdq.js"
   },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
   },
+  "files": [
+    "dist",
+    "bin",
+    "src",
+    "README.md"
+  ],
   "scripts": {
+    "build": "bunup",
+    "build:watch": "bunup --watch",
     "test": "bun test ./src",
+    "typecheck": "tsc --noEmit",
     "bench:parse": "bun dev/bench/parse.ts",
     "bench:query": "bun dev/bench/query.ts",
     "bench:cli": "bun dev/bench/cli.ts",
@@ -21,6 +37,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/markdown-it": "^14.1.2",
+    "bunup": "^0.16.31",
     "cac": "^7.0.0",
     "citty": "^0.2.2",
     "markdown-it": "^14.1.1",
