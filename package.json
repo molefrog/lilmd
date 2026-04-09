@@ -1,0 +1,39 @@
+{
+  "name": "mdq",
+  "version": "0.0.0",
+  "description": "CLI for working with large MD files — Markdown is the new DB",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "mdq": "./dist/mdq.js"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bunup",
+    "build:watch": "bunup --watch",
+    "test": "bun test ./src",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "bunup": "^0.16.31"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,331 @@
+/**
+ * CLI-level integration tests. We call the exported `run(argv)` function
+ * directly instead of spawning a subprocess — faster, easier to diff
+ * output, and still exercises every branch. A separate spawn-based smoke
+ * test for stdin and the `bin/mdq.ts` entry lives in `integration.test.ts`.
+ */
+
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+import { run } from "./cli";
+
+let dir: string;
+let file: string;
+const SRC = `# MDQ
+
+Intro paragraph.
+
+## Getting Started
+
+Steps:
+
+### Install
+
+brew install mdq
+
+### Setup
+
+run it.
+
+## API
+
+API section.
+
+### read
+
+Reads a section.
+
+## Community
+
+Talk to us.
+`;
+
+beforeAll(() => {
+  dir = mkdtempSync(join(tmpdir(), "mdq-cli-test-"));
+  file = join(dir, "doc.md");
+  writeFileSync(file, SRC);
+});
+
+afterAll(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
+
+describe("cli: help", () => {
+  test("no args prints help with exit 0", () => {
+    const r = run([]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("Usage:");
+    expect(r.stdout).toContain("Selector grammar");
+  });
+
+  test("--help prints help", () => {
+    const r = run(["--help"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("Usage:");
+  });
+});
+
+describe("cli: toc (positional form)", () => {
+  test("single positional is interpreted as toc", () => {
+    const r = run([file]);
+    expect(r.code).toBe(0);
+    expect(r.stdout.split("\n")[0]).toContain("headings");
+    expect(r.stdout).toContain("# MDQ");
+    expect(r.stdout).toContain("## Getting Started");
+    expect(r.stdout).toContain("### Install");
+  });
+
+  test("--depth filters deeper headings", () => {
+    const r = run([file, "--depth", "2"]);
+    expect(r.stdout).toContain("## Getting Started");
+    expect(r.stdout).not.toContain("### Install");
+  });
+
+  test("--flat removes indentation", () => {
+    const r = run([file, "--flat"]);
+    const dataLines = r.stdout.split("\n").slice(1);
+    for (const l of dataLines) expect(l).not.toMatch(/^ /);
+  });
+
+  test("--json emits structured output", () => {
+    const r = run([file, "--json"]);
+    const j = JSON.parse(r.stdout);
+    expect(j.file).toBe(file);
+    expect(j.headings.length).toBeGreaterThan(0);
+    expect(j.headings[0]).toMatchObject({ level: 1, title: "MDQ" });
+  });
+});
+
+describe("cli: read (positional form alias)", () => {
+  test("two positionals is interpreted as read", () => {
+    const r = run([file, "Install"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("### Install");
+    expect(r.stdout).toContain("brew install mdq");
+  });
+
+  test("descendant chain narrows results", () => {
+    const r = run([file, "API > read"]);
+    expect(r.stdout).toContain("Reads a section.");
+    expect(r.stdout).not.toContain("brew install mdq");
+  });
+
+  test("direct child succeeds for immediate parent", () => {
+    const r = run([file, "API >> read"]);
+    expect(r.stdout).toContain("Reads a section.");
+  });
+
+  test("level filter matches only that level", () => {
+    const r = run([file, "##API"]);
+    expect(r.stdout).toContain("## API");
+    expect(r.stdout).toContain("API section.");
+  });
+
+  test("no match prints friendly message and exits 1", () => {
+    const r = run([file, "does-not-exist"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+
+  test("no match with --json emits empty matches array and exits 1", () => {
+    const r = run([file, "does-not-exist", "--json"]);
+    expect(r.code).toBe(1);
+    const j = JSON.parse(r.stdout);
+    expect(j.matches).toEqual([]);
+    expect(j.truncated).toBe(false);
+    expect(j.file).toBe(file);
+  });
+
+  test("--body-only stops before first child", () => {
+    const r = run([file, "Getting Started", "--body-only"]);
+    expect(r.stdout).toContain("Steps:");
+    expect(r.stdout).not.toContain("brew install mdq");
+  });
+
+  test("--no-body prints only the heading", () => {
+    const r = run([file, "Install", "--no-body"]);
+    expect(r.stdout).toContain("### Install");
+    expect(r.stdout).not.toContain("brew install");
+  });
+
+  test("--raw drops delimiters", () => {
+    const r = run([file, "Install", "--raw"]);
+    expect(r.stdout).not.toMatch(/── /);
+  });
+
+  test("--max-lines truncates long bodies", () => {
+    const r = run([file, "MDQ", "--max-lines", "3"]);
+    expect(r.stdout).toContain("more lines");
+  });
+
+  test("--json emits match objects with body", () => {
+    const r = run([file, "Install", "--json"]);
+    const j = JSON.parse(r.stdout);
+    expect(j.matches[0]).toMatchObject({ level: 3, title: "Install" });
+    expect(j.matches[0].body).toContain("brew install mdq");
+  });
+
+  test("explicit 'read' subcommand works", () => {
+    const r = run(["read", file, "Install"]);
+    expect(r.stdout).toContain("brew install mdq");
+  });
+});
+
+describe("cli: ls", () => {
+  test("lists direct children of a matched section", () => {
+    const r = run(["ls", file, "MDQ"]);
+    expect(r.stdout).toContain("# MDQ");
+    expect(r.stdout).toContain("## Getting Started");
+    expect(r.stdout).toContain("## API");
+    expect(r.stdout).toContain("## Community");
+    // grandchildren should NOT be in the ls output
+    expect(r.stdout).not.toContain("### Install");
+  });
+
+  test("ls on a leaf reports (no children)", () => {
+    const r = run(["ls", file, "Install"]);
+    expect(r.stdout).toContain("no children");
+  });
+
+  test("ls --json emits a file + results shape", () => {
+    const r = run(["ls", file, "API", "--json"]);
+    const j = JSON.parse(r.stdout);
+    expect(j.file).toBe(file);
+    expect(Array.isArray(j.results)).toBe(true);
+    expect(j.results).toHaveLength(1);
+    expect(j.results[0].parent.title).toBe("API");
+    expect(j.results[0].children.map((c: { title: string }) => c.title)).toEqual(["read"]);
+  });
+
+  test("ls --json on no match is a parseable empty-results doc", () => {
+    const r = run(["ls", file, "zzz-nope", "--json"]);
+    expect(r.code).toBe(1);
+    const j = JSON.parse(r.stdout);
+    expect(j.file).toBe(file);
+    expect(j.results).toEqual([]);
+  });
+});
+
+describe("cli: grep", () => {
+  test("finds a word and attributes it to the enclosing section", () => {
+    const r = run(["grep", file, "brew"]);
+    expect(r.stdout).toContain("L");
+    expect(r.stdout).toContain("brew install mdq");
+    // The section header path should include the enclosing heading
+    expect(r.stdout).toContain("Install");
+  });
+
+  test("regex pattern works", () => {
+    const r = run(["grep", file, "^## "]);
+    expect(r.stdout).toContain("## Getting Started");
+    expect(r.stdout).toContain("## API");
+  });
+
+  test("no match prints friendly message", () => {
+    const r = run(["grep", file, "xyzzy-nothing"]);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+
+  test("invalid regex returns exit 2 with an error", () => {
+    const r = run(["grep", file, "["]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/invalid regex/);
+  });
+
+  test("--json emits an array of hits with section metadata", () => {
+    const r = run(["grep", file, "mdq", "--json"]);
+    const j = JSON.parse(r.stdout);
+    expect(Array.isArray(j)).toBe(true);
+    expect(j.length).toBeGreaterThan(0);
+    expect(j[0]).toHaveProperty("line");
+    expect(j[0]).toHaveProperty("text");
+    expect(j[0]).toHaveProperty("section");
+  });
+
+  test("works on a file with no headings (section is null)", () => {
+    const noHeadings = join(dir, "flat.md");
+    writeFileSync(noHeadings, "just some words\nand more words with cat in them\n");
+    const r = run(["grep", noHeadings, "cat"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("cat");
+    expect(r.stdout).toContain("no enclosing heading");
+
+    const rJ = run(["grep", noHeadings, "cat", "--json"]);
+    const j = JSON.parse(rJ.stdout);
+    expect(j[0].section).toBeNull();
+  });
+
+  test("matches before the first heading are attributed to null", () => {
+    const mixed = join(dir, "preamble.md");
+    writeFileSync(mixed, "preamble with cat\n\n# After\n\nalso cat\n");
+    const rJ = run(["grep", mixed, "cat", "--json"]);
+    const j = JSON.parse(rJ.stdout);
+    expect(j).toHaveLength(2);
+    expect(j[0].section).toBeNull();
+    expect(j[1].section.title).toBe("After");
+  });
+});
+
+describe("cli: errors", () => {
+  test("unknown flag reports parse error with exit 2", () => {
+    const r = run([file, "--nope"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/nope|unknown/i);
+  });
+
+  test("read without selector is an error", () => {
+    const r = run(["read", file]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/selector/);
+  });
+
+  test("missing file returns friendly exit 2 (not a stack trace)", () => {
+    const r = run(["/does/not/exist.md"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/cannot open/);
+    expect(r.stderr).not.toMatch(/ENOENT|at \w/); // no raw node stack
+  });
+
+  test("--max-results with a non-number is an error", () => {
+    const r = run([file, "Install", "--max-results", "abc"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/max-results/);
+  });
+
+  test("--depth with a negative number is an error", () => {
+    const r = run([file, "--depth", "-1"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/depth/);
+  });
+});
+
+describe("cli: extras per review", () => {
+  test("--depth 0 shows zero headings (and not 'all')", () => {
+    const r = run([file, "--depth", "0"]);
+    expect(r.code).toBe(0);
+    // Header line still present, but no heading lines underneath.
+    const lines = r.stdout.split("\n").filter((l) => l.length > 0);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/headings/);
+  });
+
+  test("--max-results 1 with multiple matches shows banner + JSON truncated", () => {
+    const r = run([file, "/.+/", "--max-results", "1"]);
+    expect(r.stdout).toMatch(/matches, showing first 1/);
+
+    const rJ = run([file, "/.+/", "--max-results", "1", "--json"]);
+    const j = JSON.parse(rJ.stdout);
+    expect(j.matches).toHaveLength(1);
+    expect(j.truncated).toBe(true);
+  });
+
+  test("ls honors --max-results", () => {
+    // MDQ has several descendants; ensure the cap is applied.
+    const r = run(["ls", file, "/.+/", "--max-results", "1", "--json"]);
+    const j = JSON.parse(r.stdout);
+    expect(j.results).toHaveLength(1);
+  });
+});
