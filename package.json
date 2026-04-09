@@ -19,15 +19,15 @@
   },
   "files": [
     "dist",
-    "bin",
-    "src",
-    "README.md"
+    "README.md",
+    "BENCHMARK.md"
   ],
   "scripts": {
     "build": "bunup",
     "build:watch": "bunup --watch",
     "test": "bun test ./src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run build && bun test ./src && bunx tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest",
