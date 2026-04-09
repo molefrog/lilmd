@@ -31,6 +31,7 @@ import { scan } from "./scan";
 import { buildSections, countLines, pathOf, type Section } from "./sections";
 import { match, parseSelector } from "./select";
 import { renderSection, renderToc, truncateBody } from "./render";
+import { loadPrettyFormatter, type PrettyFormatter } from "./pretty";
 
 const HELP = `mdq — CLI for working with large Markdown files
 
@@ -58,6 +59,7 @@ Options:
   --body-only               read: skip subsections
   --no-body                 read: print headings only
   --raw                     read: drop delimiter lines
+  --pretty                  read: render markdown with ANSI styling (for humans)
   --json                    machine-readable JSON output
 
 Use '-' as <file> to read from stdin. Exit code is 1 when no matches.
@@ -86,11 +88,13 @@ const OPTIONS = {
   "body-only": { type: "boolean" },
   "no-body": { type: "boolean" },
   raw: { type: "boolean" },
+  pretty: { type: "boolean" },
   json: { type: "boolean" },
   help: { type: "boolean", short: "h" },
 } satisfies NonNullable<ParseArgsConfig["options"]>;
 
-export function run(argv: string[]): CliResult {
+/** CLI entry point. Async because `--pretty` lazy-loads marked. */
+export async function run(argv: string[]): Promise<CliResult> {
   let parsed;
   try {
     parsed = parseArgs({
@@ -123,7 +127,11 @@ export function run(argv: string[]): CliResult {
 
 type Values = ReturnType<typeof parseArgs<{ options: typeof OPTIONS }>>["values"];
 
-function dispatch(cmd: string, rest: string[], values: Values): CliResult {
+async function dispatch(
+  cmd: string,
+  rest: string[],
+  values: Values,
+): Promise<CliResult> {
   switch (cmd) {
     case "toc":
       return cmdToc(rest, values);
@@ -214,11 +222,16 @@ function cmdToc(rest: string[], v: Values): CliResult {
   );
 }
 
-function cmdRead(rest: string[], v: Values): CliResult {
+async function cmdRead(rest: string[], v: Values): Promise<CliResult> {
   const file = rest[0];
   const selectorStr = rest[1];
   if (file == null || selectorStr == null) {
     return err("mdq read: missing <file> or <selector>\n", 2);
+  }
+  // --pretty styles output with ANSI for humans; --json is for machines.
+  // Reject the combo before we do any I/O.
+  if (v.pretty && v.json) {
+    return err("mdq read: --pretty cannot be combined with --json\n", 2);
   }
   const loaded = loadFile(file);
   if ("code" in loaded) return loaded;
@@ -252,6 +265,15 @@ function cmdRead(rest: string[], v: Values): CliResult {
 
   if (matches.length === 0) return noMatch("(no match)\n");
 
+  let pretty: PrettyFormatter | undefined;
+  if (v.pretty) {
+    try {
+      pretty = await loadPrettyFormatter();
+    } catch (e) {
+      return err(`mdq read: ${(e as Error).message}\n`, 2);
+    }
+  }
+
   const cap = maxResults.value ?? 25;
   const toPrint = matches.slice(0, cap);
   const out: string[] = [];
@@ -268,6 +290,7 @@ function cmdRead(rest: string[], v: Values): CliResult {
         raw: !!v.raw,
         maxLines: maxLines.value ?? 0,
         allSections: sections,
+        pretty,
       }),
     );
   }

@@ -92,6 +92,32 @@ describe("renderSection", () => {
     expect(out).not.toContain("── ");
     expect(out.startsWith("# Title")).toBe(true);
   });
+
+  test("pretty formatter transforms the body, delimiters untouched", () => {
+    const out = renderSection("file.md", srcLines, sections[0], {
+      pretty: (md) => `<<PRETTY>>${md}<<END>>`,
+    });
+    expect(out).toContain("<<PRETTY>>");
+    expect(out).toContain("<<END>>");
+    expect(out).toContain("first line");
+    expect(out).toMatch(/── file\.md/);
+    expect(out).toContain("── end");
+  });
+
+  test("pretty receives the already-truncated body", () => {
+    let received = "";
+    const body = "# Title\n\nline1\nline2\nline3\nline4\nline5";
+    const longLines = body.split("\n");
+    const long = buildSections([h(1, "Title", 1)], longLines.length);
+    renderSection("file.md", longLines, long[0], {
+      maxLines: 2,
+      pretty: (md) => {
+        received = md;
+        return md;
+      },
+    });
+    expect(received).toContain("more lines");
+  });
 });
 
 describe("truncateBody", () => {
