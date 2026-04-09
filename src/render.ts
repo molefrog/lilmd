@@ -1,5 +1,5 @@
 /**
- * Output formatting for mdq.
+ * Output formatting for lilmd.
  *
  * Two targets today: `renderToc` for the TOC view and `renderSection` for a
  * single section read. Both emit grep-friendly plain text with stable

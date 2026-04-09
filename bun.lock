@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "mdq",
+      "name": "lilmd",
       "dependencies": {
         "marked": "^15",
         "marked-terminal": "^7",

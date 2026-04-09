@@ -2,7 +2,7 @@
  * CLI-level integration tests. We call the exported `run(argv)` function
  * directly instead of spawning a subprocess — faster, easier to diff
  * output, and still exercises every branch. A separate spawn-based smoke
- * test for stdin and the `bin/mdq.ts` entry lives in `integration.test.ts`.
+ * test for stdin and the `bin/lilmd.ts` entry lives in `integration.test.ts`.
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
@@ -14,7 +14,7 @@ import { run } from "./cli";
 
 let dir: string;
 let file: string;
-const SRC = `# MDQ
+const SRC = `# lilmd
 
 Intro paragraph.
 
@@ -24,7 +24,7 @@ Steps:
 
 ### Install
 
-brew install mdq
+brew install lilmd
 
 ### Setup
 
@@ -44,7 +44,7 @@ Talk to us.
 `;
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "mdq-cli-test-"));
+  dir = mkdtempSync(join(tmpdir(), "lilmd-cli-test-"));
   file = join(dir, "doc.md");
   writeFileSync(file, SRC);
 });
@@ -73,7 +73,7 @@ describe("cli: toc (positional form)", () => {
     const r = await run([file]);
     expect(r.code).toBe(0);
     expect(r.stdout.split("\n")[0]).toContain("headings");
-    expect(r.stdout).toContain("# MDQ");
+    expect(r.stdout).toContain("# lilmd");
     expect(r.stdout).toContain("## Getting Started");
     expect(r.stdout).toContain("### Install");
   });
@@ -95,7 +95,7 @@ describe("cli: toc (positional form)", () => {
     const j = JSON.parse(r.stdout);
     expect(j.file).toBe(file);
     expect(j.headings.length).toBeGreaterThan(0);
-    expect(j.headings[0]).toMatchObject({ level: 1, title: "MDQ" });
+    expect(j.headings[0]).toMatchObject({ level: 1, title: "lilmd" });
   });
 });
 
@@ -104,13 +104,13 @@ describe("cli: read (positional form alias)", () => {
     const r = await run([file, "Install"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("### Install");
-    expect(r.stdout).toContain("brew install mdq");
+    expect(r.stdout).toContain("brew install lilmd");
   });
 
   test("descendant chain narrows results", async () => {
     const r = await run([file, "API > read"]);
     expect(r.stdout).toContain("Reads a section.");
-    expect(r.stdout).not.toContain("brew install mdq");
+    expect(r.stdout).not.toContain("brew install lilmd");
   });
 
   test("direct child succeeds for immediate parent", async () => {
@@ -142,7 +142,7 @@ describe("cli: read (positional form alias)", () => {
   test("--body-only stops before first child", async () => {
     const r = await run([file, "Getting Started", "--body-only"]);
     expect(r.stdout).toContain("Steps:");
-    expect(r.stdout).not.toContain("brew install mdq");
+    expect(r.stdout).not.toContain("brew install lilmd");
   });
 
   test("--no-body prints only the heading", async () => {
@@ -157,7 +157,7 @@ describe("cli: read (positional form alias)", () => {
   });
 
   test("--max-lines truncates long bodies", async () => {
-    const r = await run([file, "MDQ", "--max-lines", "3"]);
+    const r = await run([file, "lilmd", "--max-lines", "3"]);
     expect(r.stdout).toContain("more lines");
   });
 
@@ -165,12 +165,12 @@ describe("cli: read (positional form alias)", () => {
     const r = await run([file, "Install", "--json"]);
     const j = JSON.parse(r.stdout);
     expect(j.matches[0]).toMatchObject({ level: 3, title: "Install" });
-    expect(j.matches[0].body).toContain("brew install mdq");
+    expect(j.matches[0].body).toContain("brew install lilmd");
   });
 
   test("explicit 'read' subcommand works", async () => {
     const r = await run(["read", file, "Install"]);
-    expect(r.stdout).toContain("brew install mdq");
+    expect(r.stdout).toContain("brew install lilmd");
   });
 
   test("--pretty renders section with ANSI styling", async () => {
@@ -180,7 +180,7 @@ describe("cli: read (positional form alias)", () => {
     try {
       const r = await run([file, "Install", "--pretty"]);
       expect(r.code).toBe(0);
-      expect(r.stdout).toContain("brew install mdq");
+      expect(r.stdout).toContain("brew install lilmd");
       expect(r.stdout).toMatch(/── .*Install/);
       expect(r.stdout).toMatch(/\x1b\[\d/);
     } finally {
@@ -218,8 +218,8 @@ describe("cli: read (positional form alias)", () => {
 
 describe("cli: ls", () => {
   test("lists direct children of a matched section", async () => {
-    const r = await run(["ls", file, "MDQ"]);
-    expect(r.stdout).toContain("# MDQ");
+    const r = await run(["ls", file, "lilmd"]);
+    expect(r.stdout).toContain("# lilmd");
     expect(r.stdout).toContain("## Getting Started");
     expect(r.stdout).toContain("## API");
     expect(r.stdout).toContain("## Community");
@@ -255,7 +255,7 @@ describe("cli: grep", () => {
   test("finds a word and attributes it to the enclosing section", async () => {
     const r = await run(["grep", file, "brew"]);
     expect(r.stdout).toContain("L");
-    expect(r.stdout).toContain("brew install mdq");
+    expect(r.stdout).toContain("brew install lilmd");
     // The section header path should include the enclosing heading
     expect(r.stdout).toContain("Install");
   });
@@ -278,7 +278,7 @@ describe("cli: grep", () => {
   });
 
   test("--json emits an array of hits with section metadata", async () => {
-    const r = await run(["grep", file, "mdq", "--json"]);
+    const r = await run(["grep", file, "lilmd", "--json"]);
     const j = JSON.parse(r.stdout);
     expect(Array.isArray(j)).toBe(true);
     expect(j.length).toBeGreaterThan(0);
@@ -365,7 +365,7 @@ describe("cli: extras per review", () => {
   });
 
   test("ls honors --max-results", async () => {
-    // MDQ has several descendants; ensure the cap is applied.
+    // lilmd has several descendants; ensure the cap is applied.
     const r = await run(["ls", file, "/.+/", "--max-results", "1", "--json"]);
     const j = JSON.parse(r.stdout);
     expect(j.results).toHaveLength(1);

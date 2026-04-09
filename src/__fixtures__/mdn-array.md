@@ -1,5 +1,5 @@
 <!--
-  Test fixture for mdq integration tests.
+  Test fixture for lilmd integration tests.
 
   This file is a concatenation of 8 MDN Web Docs pages under
   files/en-us/web/javascript/reference/global_objects/array from the
