@@ -2,7 +2,7 @@
  * Markdown heading scanner — the engine behind every read-path command.
  *
  * Instead of building a full CommonMark AST we walk the source line by line
- * and recognize only what `mdq` actually needs: ATX headings and fenced code
+ * and recognize only what `lilmd` actually needs: ATX headings and fenced code
  * blocks (so `#` inside code doesn't count as a heading).
  *
  * Numbers on MDN content (see BENCHMARK.md): ~180 MB/s end-to-end on a
@@ -10,7 +10,7 @@
  * mdast-util-from-markdown while returning the exact same section.
  *
  * Deliberate limitations:
- * - Setext headings (`===` / `---` underlines) are NOT recognized. mdq is
+ * - Setext headings (`===` / `---` underlines) are NOT recognized. lilmd is
  *   aimed at agent-authored markdown where ATX is ubiquitous.
  * - HTML blocks are not detected. A `<pre>` containing an ATX-looking line
  *   would be misread as a heading. That's an acceptable tradeoff for 100x

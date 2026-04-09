@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * mdq CLI — composes scan + sections + select + render into commands.
+ * lilmd CLI — composes scan + sections + select + render into commands.
  *
  * Uses node:util.parseArgs only: zero runtime dependencies. Subcommand
  * dispatch is a tiny switch on argv[0]; that's about 20 lines of glue we'd
@@ -8,12 +8,12 @@
  * (see BENCHMARK.md) showed cac and parseArgs tied at ~16ms.
  *
  * Public commands (MVP):
- *   mdq [file]                   toc
- *   mdq <file> <selector>        alias for: mdq read
- *   mdq read <file> <selector>   read section(s) matching selector
- *   mdq ls <file> <selector>     direct children of matching section
- *   mdq grep <file> <pattern>    regex search inside section bodies
- *   mdq --help | -h              help
+ *   lilmd [file]                   toc
+ *   lilmd <file> <selector>        alias for: lilmd read
+ *   lilmd read <file> <selector>   read section(s) matching selector
+ *   lilmd ls <file> <selector>     direct children of matching section
+ *   lilmd grep <file> <pattern>    regex search inside section bodies
+ *   lilmd --help | -h              help
  *
  * File argument accepts `-` to read stdin.
  *
@@ -33,15 +33,15 @@ import { match, parseSelector } from "./select";
 import { renderSection, renderToc, truncateBody } from "./render";
 import { loadPrettyFormatter, type PrettyFormatter } from "./pretty";
 
-const HELP = `mdq — CLI for working with large Markdown files
+const HELP = `lilmd — CLI for working with large Markdown files
 
 Usage:
-  mdq                              show this help
-  mdq <file>                       print table of contents
-  mdq <file> <selector>            alias for 'mdq read'
-  mdq read <file> <selector>       print sections matching selector
-  mdq ls   <file> <selector>       list direct child headings
-  mdq grep <file> <pattern>        regex-search section bodies
+  lilmd                              show this help
+  lilmd <file>                       print table of contents
+  lilmd <file> <selector>            alias for 'lilmd read'
+  lilmd read <file> <selector>       print sections matching selector
+  lilmd ls   <file> <selector>       list direct child headings
+  lilmd grep <file> <pattern>        regex-search section bodies
 
 Selector grammar:
   Install                   fuzzy, case-insensitive substring
@@ -71,7 +71,7 @@ function ok(s: string): CliResult {
   return { code: 0, stdout: s, stderr: "" };
 }
 function noMatch(s: string): CliResult {
-  // Successful run that found nothing: exit 1 so `mdq ... && foo` works the
+  // Successful run that found nothing: exit 1 so `lilmd ... && foo` works the
   // way agents expect, but keep the friendly message on stdout so humans see
   // it too.
   return { code: 1, stdout: s, stderr: "" };
@@ -104,7 +104,7 @@ export async function run(argv: string[]): Promise<CliResult> {
       strict: true,
     });
   } catch (e) {
-    return err(`mdq: ${(e as Error).message}\n${HELP}`, 2);
+    return err(`lilmd: ${(e as Error).message}\n${HELP}`, 2);
   }
 
   const { values, positionals } = parsed;
@@ -119,8 +119,8 @@ export async function run(argv: string[]): Promise<CliResult> {
   }
 
   // Positional form:
-  //   mdq <file>              -> toc
-  //   mdq <file> <selector>   -> read
+  //   lilmd <file>              -> toc
+  //   lilmd <file> <selector>   -> read
   if (positionals.length === 1) return dispatch("toc", positionals, values);
   return dispatch("read", positionals, values);
 }
@@ -142,14 +142,14 @@ async function dispatch(
     case "grep":
       return cmdGrep(rest, values);
     default:
-      return err(`mdq: unknown command '${cmd}'\n${HELP}`, 2);
+      return err(`lilmd: unknown command '${cmd}'\n${HELP}`, 2);
   }
 }
 
 /**
  * Read `file` from disk or stdin. Returns a CliResult on failure so callers
  * can just forward it — we swallow raw ENOENT stack traces here and emit a
- * friendly "mdq: cannot open 'foo.md'" message instead.
+ * friendly "lilmd: cannot open 'foo.md'" message instead.
  */
 function loadFile(file: string): { src: string } | CliResult {
   try {
@@ -157,8 +157,8 @@ function loadFile(file: string): { src: string } | CliResult {
     return { src };
   } catch (e) {
     const msg = (e as NodeJS.ErrnoException).code === "ENOENT"
-      ? `mdq: cannot open '${file}': not found\n`
-      : `mdq: cannot open '${file}': ${(e as Error).message}\n`;
+      ? `lilmd: cannot open '${file}': not found\n`
+      : `lilmd: cannot open '${file}': ${(e as Error).message}\n`;
     return err(msg, 2);
   }
 }
@@ -183,7 +183,7 @@ function readFlag(
   if (raw == null) return { value: fallback };
   const n = parseIntOrNull(raw);
   if (n == null || n < 0) {
-    return err(`mdq: --${name} expects a non-negative integer, got '${raw}'\n`, 2);
+    return err(`lilmd: --${name} expects a non-negative integer, got '${raw}'\n`, 2);
   }
   return { value: n };
 }
@@ -192,7 +192,7 @@ function readFlag(
 
 function cmdToc(rest: string[], v: Values): CliResult {
   const file = rest[0];
-  if (file == null) return err("mdq toc: missing <file>\n", 2);
+  if (file == null) return err("lilmd toc: missing <file>\n", 2);
   const loaded = loadFile(file);
   if ("code" in loaded) return loaded;
   const { src } = loaded;
@@ -226,12 +226,12 @@ async function cmdRead(rest: string[], v: Values): Promise<CliResult> {
   const file = rest[0];
   const selectorStr = rest[1];
   if (file == null || selectorStr == null) {
-    return err("mdq read: missing <file> or <selector>\n", 2);
+    return err("lilmd read: missing <file> or <selector>\n", 2);
   }
   // --pretty styles output with ANSI for humans; --json is for machines.
   // Reject the combo before we do any I/O.
   if (v.pretty && v.json) {
-    return err("mdq read: --pretty cannot be combined with --json\n", 2);
+    return err("lilmd read: --pretty cannot be combined with --json\n", 2);
   }
   const loaded = loadFile(file);
   if ("code" in loaded) return loaded;
@@ -248,7 +248,7 @@ async function cmdRead(rest: string[], v: Values): Promise<CliResult> {
 
   // Split source once and pass srcLines through to render. Previously
   // renderSection/sliceBody each re-split for every match, turning
-  // `mdq read file.md sel` into O(matches × file_size).
+  // `lilmd read file.md sel` into O(matches × file_size).
   const srcLines = src.split("\n");
 
   if (v.json) {
@@ -270,7 +270,7 @@ async function cmdRead(rest: string[], v: Values): Promise<CliResult> {
     try {
       pretty = await loadPrettyFormatter();
     } catch (e) {
-      return err(`mdq read: ${(e as Error).message}\n`, 2);
+      return err(`lilmd read: ${(e as Error).message}\n`, 2);
     }
   }
 
@@ -328,7 +328,7 @@ function cmdLs(rest: string[], v: Values): CliResult {
   const file = rest[0];
   const selectorStr = rest[1];
   if (file == null || selectorStr == null) {
-    return err("mdq ls: missing <file> or <selector>\n", 2);
+    return err("lilmd ls: missing <file> or <selector>\n", 2);
   }
   const loaded = loadFile(file);
   if ("code" in loaded) return loaded;
@@ -387,7 +387,7 @@ function cmdGrep(rest: string[], v: Values): CliResult {
   const file = rest[0];
   const pattern = rest[1];
   if (file == null || pattern == null) {
-    return err("mdq grep: missing <file> or <pattern>\n", 2);
+    return err("lilmd grep: missing <file> or <pattern>\n", 2);
   }
   const loaded = loadFile(file);
   if ("code" in loaded) return loaded;
@@ -398,7 +398,7 @@ function cmdGrep(rest: string[], v: Values): CliResult {
   try {
     re = new RegExp(pattern);
   } catch (e) {
-    return err(`mdq grep: invalid regex: ${(e as Error).message}\n`, 2);
+    return err(`lilmd grep: invalid regex: ${(e as Error).message}\n`, 2);
   }
 
   const srcLines = src.split("\n");
@@ -489,4 +489,4 @@ function sectionToJSON(sec: Section): Record<string, unknown> {
   };
 }
 
-// Entry point lives in bin/mdq.ts; this module only exports `run`.
+// Entry point lives in bin/lilmd.ts; this module only exports `run`.

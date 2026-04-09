@@ -1,5 +1,5 @@
 /**
- * Pretty printing for `mdq read --pretty`. Lazy-loads marked +
+ * Pretty printing for `lilmd read --pretty`. Lazy-loads marked +
  * marked-terminal on first use so the default (plain-text) path keeps its
  * ~16ms cold start.
  */
@@ -23,7 +23,7 @@ async function buildFormatter(): Promise<PrettyFormatter> {
     markedTerminal({
       reflowText: false,
       tab: 2,
-      // Unicode em-dash for <hr>, matches mdq's delimiter style.
+      // Unicode em-dash for <hr>, matches lilmd's delimiter style.
       hr: "─",
     }),
   );
@@ -49,7 +49,7 @@ async function buildFormatter(): Promise<PrettyFormatter> {
       console.error = originalError;
     }
     if (typeof rendered !== "string") {
-      throw new Error("mdq: pretty renderer returned a Promise unexpectedly");
+      throw new Error("lilmd: pretty renderer returned a Promise unexpectedly");
     }
     // marked-terminal appends a trailing newline; trim so delimiter spacing
     // matches the plain path.

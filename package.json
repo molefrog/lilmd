@@ -4,7 +4,7 @@
   "description": "CLI for working with large MD files — Markdown is the new DB",
   "type": "module",
   "bin": {
-    "mdq": "./dist/mdq.js"
+    "lilmd": "./dist/lilmd.js"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

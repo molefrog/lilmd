@@ -1,6 +1,6 @@
 # Benchmark summary
 
-Why `mdq` uses a hand-rolled scanner instead of an off-the-shelf markdown
+Why `lilmd` uses a hand-rolled scanner instead of an off-the-shelf markdown
 parser. Numbers captured on Bun 1.3.11 against MDN content (`mdn/content`,
 sparse-checkout of `files/en-us/web/{javascript,css,html,api}`, concatenated
 into fixtures of ~100 KB, ~1 MB, and ~10 MB).
@@ -15,7 +15,7 @@ into fixtures of ~100 KB, ~1 MB, and ~10 MB).
 | marked lexer | ❌ | >90 s on a 1 MB input (unusable) |
 | md4w (WASM) | ❌ | ~42 MB/s, errors on 10 MB JSON output |
 
-## End-to-end `mdq read` (10 MB, find a section + slice its body)
+## End-to-end `lilmd read` (10 MB, find a section + slice its body)
 
 | strategy | time |
 |---|---:|
@@ -36,7 +36,7 @@ the scanner is correct, not just fast.
 
 ## Why the scanner wins
 
-`mdq`'s read-path commands (`toc`, `read`, `ls`, `grep`) only need two facts
+`lilmd`'s read-path commands (`toc`, `read`, `ls`, `grep`) only need two facts
 from the markdown:
 
 1. ATX headings — level, text, line number
@@ -45,7 +45,7 @@ from the markdown:
 Everything else — links, emphasis, tables, footnotes, nested lists, HTML
 blocks — is irrelevant to "list the headings" and "slice the body between
 line N and line M". A full CommonMark parser spends 95% of its budget on
-grammar `mdq` immediately throws away. The scanner skips all of that, runs
+grammar `lilmd` immediately throws away. The scanner skips all of that, runs
 in a single pass over character codes, and is IO-bound on 10 MB of prose.
 
 ## The final stack
