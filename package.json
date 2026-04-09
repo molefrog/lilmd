@@ -1,0 +1,24 @@
+{
+  "name": "mdq",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/markdown-it": "^14.1.2",
+    "cac": "^7.0.0",
+    "citty": "^0.2.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "markdown-it": "^14.1.1",
+    "marked": "^18.0.0",
+    "md4w": "^0.2.7",
+    "mdast-util-from-markdown": "^2.0.3",
+    "micromark": "^4.0.2",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
+  }
+}

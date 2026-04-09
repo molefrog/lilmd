@@ -1,0 +1,50 @@
+[
+  {
+    "framework": "citty",
+    "command": "toc",
+    "iterations": 30,
+    "median_ms": 23.4,
+    "min_ms": 22.23,
+    "p90_ms": 25.67
+  },
+  {
+    "framework": "citty",
+    "command": "read",
+    "iterations": 30,
+    "median_ms": 22.9,
+    "min_ms": 21.78,
+    "p90_ms": 26.38
+  },
+  {
+    "framework": "cac",
+    "command": "toc",
+    "iterations": 30,
+    "median_ms": 16.27,
+    "min_ms": 15.07,
+    "p90_ms": 24.16
+  },
+  {
+    "framework": "cac",
+    "command": "read",
+    "iterations": 30,
+    "median_ms": 15.13,
+    "min_ms": 14.61,
+    "p90_ms": 17.38
+  },
+  {
+    "framework": "parseArgs",
+    "command": "toc",
+    "iterations": 30,
+    "median_ms": 16.11,
+    "min_ms": 15.58,
+    "p90_ms": 18.57
+  },
+  {
+    "framework": "parseArgs",
+    "command": "read",
+    "iterations": 30,
+    "median_ms": 16.5,
+    "min_ms": 16.02,
+    "p90_ms": 17.52
+  }
+]

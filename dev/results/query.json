@@ -1,0 +1,111 @@
+[
+  {
+    "fixture": "small",
+    "size_mb": 0.1,
+    "strategy": "scanner (hand-rolled)",
+    "iterations": 100,
+    "median_ms": 0.438,
+    "min_ms": 0.41,
+    "mb_per_s": 225.9,
+    "first_match": null,
+    "body_bytes": 0,
+    "status": "no-match"
+  },
+  {
+    "fixture": "small",
+    "size_mb": 0.1,
+    "strategy": "markdown-it",
+    "iterations": 100,
+    "median_ms": 3.176,
+    "min_ms": 2.944,
+    "mb_per_s": 31.1,
+    "first_match": null,
+    "body_bytes": 0,
+    "status": "no-match"
+  },
+  {
+    "fixture": "small",
+    "size_mb": 0.1,
+    "strategy": "mdast-util-from-markdown",
+    "iterations": 93,
+    "median_ms": 60.422,
+    "min_ms": 53.502,
+    "mb_per_s": 1.6,
+    "first_match": null,
+    "body_bytes": 0,
+    "status": "no-match"
+  },
+  {
+    "fixture": "medium",
+    "size_mb": 1,
+    "strategy": "scanner (hand-rolled)",
+    "iterations": 20,
+    "median_ms": 5.224,
+    "min_ms": 5.093,
+    "mb_per_s": 191.7,
+    "first_match": "L3179-3249 · files/en-us/web/api/angle_instanced_arrays/drawarraysinstancedangle/index.md",
+    "body_bytes": 2851,
+    "status": "ok"
+  },
+  {
+    "fixture": "medium",
+    "size_mb": 1,
+    "strategy": "markdown-it",
+    "iterations": 20,
+    "median_ms": 38.008,
+    "min_ms": 35.185,
+    "mb_per_s": 26.3,
+    "first_match": "L3179-3249 · files/en-us/web/api/angle_instanced_arrays/drawarraysinstancedangle/index.md",
+    "body_bytes": 2851,
+    "status": "ok"
+  },
+  {
+    "fixture": "medium",
+    "size_mb": 1,
+    "strategy": "mdast-util-from-markdown",
+    "iterations": 7,
+    "median_ms": 884.564,
+    "min_ms": 861.102,
+    "mb_per_s": 1.1,
+    "first_match": "L3179-3249 · files/en-us/web/api/angle_instanced_arrays/drawarraysinstancedangle/index.md",
+    "body_bytes": 2851,
+    "status": "ok"
+  },
+  {
+    "fixture": "large",
+    "size_mb": 10,
+    "strategy": "scanner (hand-rolled)",
+    "iterations": 5,
+    "median_ms": 55.419,
+    "min_ms": 55.41,
+    "mb_per_s": 180.5,
+    "first_match": "L3179-3249 · files/en-us/web/api/angle_instanced_arrays/drawarraysinstancedangle/index.md",
+    "body_bytes": 2851,
+    "status": "ok"
+  },
+  {
+    "fixture": "large",
+    "size_mb": 10,
+    "strategy": "markdown-it",
+    "iterations": 5,
+    "median_ms": 422.329,
+    "min_ms": 415.86,
+    "mb_per_s": 23.7,
+    "first_match": "L3179-3249 · files/en-us/web/api/angle_instanced_arrays/drawarraysinstancedangle/index.md",
+    "body_bytes": 2851,
+    "status": "ok"
+  },
+  {
+    "fixture": "large",
+    "size_mb": 10,
+    "strategy": "mdast-util-from-markdown",
+    "iterations": 0,
+    "median_ms": null,
+    "min_ms": null,
+    "mb_per_s": null,
+    "first_match": null,
+    "body_bytes": null,
+    "status": "skipped",
+    "note": "skipped — known too slow at this size"
+  }
+]
