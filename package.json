@@ -35,5 +35,9 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "marked": "^15",
+    "marked-terminal": "^7"
   }
 }

@@ -11,6 +11,7 @@
 
 import type { Section } from "./sections";
 import { countLines } from "./sections";
+import type { PrettyFormatter } from "./pretty";
 
 export type TocOptions = {
   depth?: number;
@@ -48,6 +49,8 @@ export type SectionOptions = {
   maxLines?: number;
   /** Required when bodyOnly is true so we can find the first child. */
   allSections?: Section[];
+  /** Optional markdown→ANSI formatter applied to the body before delimiters. */
+  pretty?: PrettyFormatter;
 };
 
 export function renderSection(
@@ -73,8 +76,13 @@ export function renderSection(
   const clampedEnd = Math.min(end, srcLines.length);
   let body = srcLines.slice(start - 1, clampedEnd).join("\n");
 
+  // Truncate before pretty-printing so ANSI escapes can't land mid-cut.
   if (opts.maxLines != null && opts.maxLines > 0) {
     body = truncateBody(body, opts.maxLines);
+  }
+
+  if (opts.pretty) {
+    body = opts.pretty(body);
   }
 
   if (opts.raw) return body;

@@ -52,6 +52,8 @@ Reading sections
 # about --max-results=N
 # --max-lines=N truncates long bodies (shows "… N more lines")
 # --body-only skips subsections, --no-body prints headings only
+# --pretty renders the section body as syntax-highlighted terminal markdown
+#   (for humans; piped output stays plain unless FORCE_COLOR is set)
 ```
 
 More commands

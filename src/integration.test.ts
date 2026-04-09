@@ -21,9 +21,9 @@ import { run } from "./cli";
 const FIXTURE = new URL("./__fixtures__/mdn-array.md", import.meta.url).pathname;
 
 describe("integration: mdn-array fixture", () => {
-  test("toc returns the expected shape under 100 ms", () => {
+  test("toc returns the expected shape under 100 ms", async () => {
     const t0 = performance.now();
-    const r = run([FIXTURE]);
+    const r = await run([FIXTURE]);
     const elapsed = performance.now() - t0;
 
     expect(r.code).toBe(0);
@@ -37,33 +37,33 @@ describe("integration: mdn-array fixture", () => {
     expect(elapsed).toBeLessThan(200);
   });
 
-  test("toc --depth 1 hides all subsections", () => {
-    const r = run([FIXTURE, "--depth", "1"]);
+  test("toc --depth 1 hides all subsections", async () => {
+    const r = await run([FIXTURE, "--depth", "1"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("# Array.prototype.concat");
     // No H2s should be rendered at depth 1.
     expect(r.stdout).not.toContain("## Syntax");
   });
 
-  test("read with a descendant selector finds a nested section", () => {
-    const r = run([FIXTURE, "concat > Syntax"]);
+  test("read with a descendant selector finds a nested section", async () => {
+    const r = await run([FIXTURE, "concat > Syntax"]);
     expect(r.code).toBe(0);
     // The body of Array.prototype.concat's Syntax section should show up.
     expect(r.stdout).toContain("## Syntax");
     expect(r.stdout).toContain("concat(");
   });
 
-  test("a generic selector returns many matches with the truncation banner", () => {
+  test("a generic selector returns many matches with the truncation banner", async () => {
     // "Syntax" appears under every method — 8 H2 matches — so we expect the
     // truncation banner to NOT fire at the default cap (25), but a tight
     // cap should fire it.
-    const r = run([FIXTURE, "=Syntax", "--max-results", "3"]);
+    const r = await run([FIXTURE, "=Syntax", "--max-results", "3"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(/8 matches, showing first 3/);
   });
 
-  test("ls lists direct children of a matched parent", () => {
-    const r = run(["ls", FIXTURE, "Array.prototype.filter", "--json"]);
+  test("ls lists direct children of a matched parent", async () => {
+    const r = await run(["ls", FIXTURE, "Array.prototype.filter", "--json"]);
     expect(r.code).toBe(0);
     const j = JSON.parse(r.stdout);
     expect(j.results).toHaveLength(1);
@@ -74,8 +74,8 @@ describe("integration: mdn-array fixture", () => {
     );
   });
 
-  test("grep finds a common term and attributes it to sections", () => {
-    const r = run(["grep", FIXTURE, "callback"]);
+  test("grep finds a common term and attributes it to sections", async () => {
+    const r = await run(["grep", FIXTURE, "callback"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("callback");
     // Should be grouped under at least one method that takes a callback
@@ -83,19 +83,19 @@ describe("integration: mdn-array fixture", () => {
     expect(r.stdout).toMatch(/── Array\.prototype\./);
   });
 
-  test("--body-only skips subsections under a matched H1", () => {
+  test("--body-only skips subsections under a matched H1", async () => {
     // The Array.prototype.filter page has an intro paragraph before any
     // H2, so --body-only on it should include that intro but exclude the
     // Syntax / Examples / etc. subsections.
-    const r = run([FIXTURE, "Array.prototype.filter", "--body-only"]);
+    const r = await run([FIXTURE, "Array.prototype.filter", "--body-only"]);
     expect(r.code).toBe(0);
     expect(r.stdout).not.toContain("## Syntax");
     // And it should still include prose from above the first H2.
     expect(r.stdout).toMatch(/filter|callbackFn|element/i);
   });
 
-  test("--json shape is a parseable document with a body field", () => {
-    const r = run([FIXTURE, "Array.prototype.concat", "--json"]);
+  test("--json shape is a parseable document with a body field", async () => {
+    const r = await run([FIXTURE, "Array.prototype.concat", "--json"]);
     expect(r.code).toBe(0);
     const j = JSON.parse(r.stdout);
     expect(j.file).toBe(FIXTURE);
