@@ -1,10 +1,10 @@
 `mdq` is a CLI for working with large MD files. Markdown is the new DB!
 
 Principles:
-- use Bun as tooling: to test, controls deps etc.
+- use Bun as tooling: to test, control deps etc.
 - can run in Node/Bun
 - prefer speed
-- Used **primarly** by AI agents, must have good AX
+- Used **primarily** by AI agents, must have good AX
 
 API
 ```
@@ -15,32 +15,66 @@ API
 
 First, the agent gets file overview and table of contents
 ```
-# renders toc: just all headings, optional --depth=3 
-# [10L=123..1234] how many lines and span
+# renders toc + stats; line ranges are inclusive, 1-indexed
 > mdq file.md
 
-# MDQ [123L=0...123]
-  ## Getting Started [10L=123..2345]
-  ## Installation 
-    ### MacOS
-  ## Community
+file.md  L1-450  12 headings
+# MDQ                       L1-450
+  ## Getting Started        L5-80
+    ### Installation        L31-80
+  ## Community              L301-450
+
+# --depth=N to limit nesting, --flat for a flat list
 ```
 
+Reading sections
 ```
 > mdq read file.md "# MDQ"
 > mdq file.md "# MDQ"           <- alias!
-# renders the contents of MDQ section
+# prints the contents of the MDQ section
 
-# simple selector
-> mdq file.md "# MDQ > ## Installation" 
+# descendant selector (any depth under the parent)
+> mdq file.md "MDQ > Installation"
 
-# by default match is not exact, if multiple matched sections found, they will be printed
-> mdq file.md "Installation" 
+# direct child only
+> mdq file.md "MDQ >> Installation"
 
-# by default, no more than 25 sections are printed if matched
-# if more, mdq prints a message before search results saying that limit can be increased using
-# --max-results=234
+# level filter (H2 only)
+> mdq file.md "##Installation"
 
-# will find all sections with Intro word that contain subscections that contain Setup
-> mdq file.md "Intro>Setup"
+# exact match (default is fuzzy, case-insensitive)
+> mdq file.md "=Installation"
+
+# regex
+> mdq file.md "/install(ation)?/"
+
+# by default no more than 25 matches are printed; if more, mdq prints a hint
+# about --max-results=N
+# --max-lines=N truncates long bodies (shows "… N more lines")
+# --body-only skips subsections, --no-body prints headings only
+```
+
+More commands
+```
+> mdq ls file.md "Getting Started"       # direct children of a section
+> mdq grep file.md "pattern"              # regex search, grouped by section
+> mdq links file.md ["selector"]          # extract links with section path
+> mdq code file.md "Install" [--lang=ts]  # extract code blocks
+
+# writes — MD is the new DB
+> mdq set    file.md "Install" < body.md  # replace section body
+> mdq append file.md "Install" < body.md
+> mdq insert file.md --after "Install" < new.md
+> mdq rm     file.md "Old"
+> mdq mv     file.md "From" "To"          # re-parent, fixes heading levels
+> mdq rename file.md "Old" "New"
+> mdq promote|demote file.md "Section"    # shift heading level ±1
+# all writes support --dry-run (prints a unified diff)
+```
+
+Output
+```
+# human-readable by default; --json for machine output
+# use - as filename to read from stdin
+> cat big.md | mdq - "Install"
 ```
