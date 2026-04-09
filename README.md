@@ -14,6 +14,17 @@ Features:
 - can be used by humans and **agents**
 - uses Bun as tooling: to test, control deps etc.
 
+### Install
+
+```bash
+# global install
+> npm i -g lilmd
+
+# or run without installing
+> npx lilmd file.md
+> bunx lilmd file.md
+```
+
 ### Help
 
 ```bash
