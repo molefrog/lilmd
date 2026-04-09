@@ -1,3 +1,5 @@
+<img src="lilmd-logo.webp" alt="lilmd logo" width="400" />
+
 ## `lilmd` - Markdown as a Database for Agents
 `lilmd` is a CLI for working with large MD files designed for agents.
 
