@@ -1,9 +1,8 @@
 {
-  "name": "mdq",
-  "version": "0.0.0",
+  "name": "lilmd",
+  "version": "0.1.0",
   "description": "CLI for working with large MD files — Markdown is the new DB",
   "type": "module",
-  "private": true,
   "bin": {
     "mdq": "./dist/mdq.js"
   },
