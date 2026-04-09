@@ -1,13 +1,19 @@
-`mdq` is a CLI for working with large MD files. Markdown is the new DB!
+## `mdq` - Markdown as a Database for Agents
+`mdq` is a CLI for working with large MD files designed for agents.
 
-Principles:
-- use Bun as tooling: to test, control deps etc.
+*Wait, but why?* Well, agent knowledge and memory grows, 
+
+Features:
+- fast navigation, complex read selectors, link extraction
+- designed to save as much context as possible
+- can write, append, remove entire sections
 - can run in Node/Bun
-- prefer speed
-- Used **primarily** by AI agents, must have good AX
+- optimized for speed
+- can be used by humans and **agents**
+- uses Bun as tooling: to test, control deps etc.
 
 API
-```
+```bash
 # both commands print help, but as a doc similar to this document
 > mdq
 > mdq --help
