@@ -75,3 +75,32 @@ git history) or rewrite them against the methodology above:
 - Trimmed mean of the fastest 50% of iterations per combo.
 - Full-throughput results written incrementally so a timeout still yields
   partial data.
+
+## Integration-test fixture
+
+`src/__fixtures__/mdn-array.md` is a tiny (~42 KB, 1,298 lines, 112
+headings) fixture committed into the repo and exercised by
+`src/integration.test.ts`. It's a concatenation of 8 MDN
+`Array.prototype.*` reference pages hoisted under synthetic H1 wrappers.
+Small enough to commit, big enough to catch regressions the synthetic unit
+fixtures can miss (Kuma macros, JSX-flavored HTML, tables, real fenced
+code, nested lists).
+
+Licensed CC BY-SA 2.5, © Mozilla Contributors. Regenerate with:
+
+```bash
+# 1. Sparse-clone the MDN Array docs (no blobs, no tree outside array/)
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/mdn/content.git /tmp/mdn
+cd /tmp/mdn
+git sparse-checkout set \
+  files/en-us/web/javascript/reference/global_objects/array
+
+# 2. Concatenate 8 method pages under synthetic H1s
+#    (see the fixture's own header comment for the exact list)
+# 3. Prepend the attribution block from the existing fixture header
+```
+
+If you change the file list or the synthetic wrappers, update the relevant
+assertions in `src/integration.test.ts` — a couple of them pin exact counts
+("8 matches, showing first 3") that are tied to the 8-page choice.
