@@ -5,8 +5,8 @@
  * and recognize only what `mdq` actually needs: ATX headings and fenced code
  * blocks (so `#` inside code doesn't count as a heading).
  *
- * Numbers from `dev/bench/query.ts` on MDN content: ~180 MB/s end-to-end on
- * a 10 MB fixture, roughly 7x faster than markdown-it and ~1000x faster than
+ * Numbers on MDN content (see BENCHMARK.md): ~180 MB/s end-to-end on a
+ * 10 MB fixture, roughly 7x faster than markdown-it and ~1000x faster than
  * mdast-util-from-markdown while returning the exact same section.
  *
  * Deliberate limitations:

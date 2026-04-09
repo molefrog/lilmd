@@ -4,8 +4,8 @@
  *
  * Uses node:util.parseArgs only: zero runtime dependencies. Subcommand
  * dispatch is a tiny switch on argv[0]; that's about 20 lines of glue we'd
- * reinvent on top of any framework anyway, and the benchmark (dev/bench/cli.ts)
- * showed cac and parseArgs tied at ~16ms cold start.
+ * reinvent on top of any framework anyway, and the cold-start benchmark
+ * (see BENCHMARK.md) showed cac and parseArgs tied at ~16ms.
  *
  * Public commands (MVP):
  *   mdq [file]                   toc

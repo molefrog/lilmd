@@ -27,26 +27,11 @@
     "build": "bunup",
     "build:watch": "bunup --watch",
     "test": "bun test ./src",
-    "typecheck": "tsc --noEmit",
-    "bench:parse": "bun dev/bench/parse.ts",
-    "bench:query": "bun dev/bench/query.ts",
-    "bench:cli": "bun dev/bench/cli.ts",
-    "bench:positions": "bun dev/bench/positions.ts",
-    "fixtures": "bun dev/make-fixtures.ts"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/markdown-it": "^14.1.2",
-    "bunup": "^0.16.31",
-    "cac": "^7.0.0",
-    "citty": "^0.2.2",
-    "markdown-it": "^14.1.1",
-    "marked": "^18.0.0",
-    "md4w": "^0.2.7",
-    "mdast-util-from-markdown": "^2.0.3",
-    "micromark": "^4.0.2",
-    "remark-parse": "^11.0.0",
-    "unified": "^11.0.5"
+    "bunup": "^0.16.31"
   },
   "peerDependencies": {
     "typescript": "^5"

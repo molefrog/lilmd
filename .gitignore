@@ -6,12 +6,6 @@ out
 dist
 *.tgz
 
-# dev/experiment artifacts (corpus is big, fixtures are derived; results are
-# small JSON and are committed so the report is reproducible-ish without
-# rerunning the benches)
-dev/corpus/
-dev/fixtures/
-
 # code coverage
 coverage
 *.lcov
