@@ -32,7 +32,12 @@ export default defineConfig([
     // Keep marked/marked-terminal external so the lazy `--pretty` path stays
     // lazy: bundling them would pull cli-highlight + chalk + cli-table3 into
     // the cold-start bundle and blow the ~16 ms startup budget.
-    external: ["marked", "marked-terminal"],
+    external: [
+      "marked",
+      "marked-terminal",
+      "@huggingface/transformers",
+      "@libsql/client",
+    ],
     // Don't wipe the library build that the previous config wrote.
     clean: false,
     sourcemap: "linked",

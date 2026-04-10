@@ -26,6 +26,7 @@
 
 import { parseArgs, type ParseArgsConfig } from "node:util";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { scan } from "./scan";
 import { buildSections, countLines, pathOf, type Section } from "./sections";
@@ -42,6 +43,10 @@ Usage:
   lilmd read <file> <selector>       print sections matching selector
   lilmd ls   <file> <selector>       list direct child headings
   lilmd grep <file> <pattern>        regex-search section bodies
+
+  [experimental] vector search:
+  lilmd index <file>                 embed sections into a vector index
+  lilmd retrieve <query>             semantic search across indexed sections
 
 Selector grammar:
   Install                   fuzzy, case-insensitive substring
@@ -114,7 +119,7 @@ export async function run(argv: string[]): Promise<CliResult> {
 
   // Detect explicit subcommand by the first positional.
   const head = positionals[0];
-  if (head === "read" || head === "ls" || head === "grep" || head === "toc") {
+  if (head === "read" || head === "ls" || head === "grep" || head === "toc" || head === "index" || head === "retrieve") {
     return dispatch(head, positionals.slice(1), values);
   }
 
@@ -141,6 +146,10 @@ async function dispatch(
       return cmdLs(rest, values);
     case "grep":
       return cmdGrep(rest, values);
+    case "index":
+      return cmdIndex(rest, values);
+    case "retrieve":
+      return cmdRetrieve(rest, values);
     default:
       return err(`lilmd: unknown command '${cmd}'\n${HELP}`, 2);
   }
@@ -455,6 +464,178 @@ function cmdGrep(rest: string[], v: Values): CliResult {
       lastSection = hit.section;
     }
     out.push(`  L${hit.line}:  ${hit.text}`);
+  }
+  return ok(out.join("\n"));
+}
+
+// ---- experimental: vector search ----------------------------------------
+
+const MAX_EMBED_LINES = 40;
+const LOG_EVERY = 10;
+const INDEX_DB = join(".lilmd", "vectors.db");
+
+/**
+ * Returns true when a section's body is mostly markdown list-links — a ToC,
+ * index, or pure-navigation section that would match every query and pollute
+ * search results. Threshold: ≥80% of non-empty lines are list-link items.
+ */
+function isNavSection(bodyLines: string[]): boolean {
+  const nonEmpty = bodyLines.filter((l) => l.trim() !== "");
+  if (nonEmpty.length === 0) return false;
+  const linkLines = nonEmpty.filter((l) => /^\s*[-*+]\s+\[/.test(l));
+  return linkLines.length / nonEmpty.length >= 0.8;
+}
+
+function prepareEmbedText(
+  sec: Section,
+  srcLines: string[],
+  allSections: Section[],
+): string | null {
+  const ancestors = pathOf(sec);
+  const pathStr =
+    ancestors.length > 0
+      ? ancestors.join(" > ") + " > " + sec.title
+      : sec.title;
+
+  const firstChild = allSections.find((s) => s.parent === sec);
+  const bodyEnd = firstChild ? firstChild.line_start - 1 : sec.line_end;
+  const bodyLines = srcLines.slice(sec.line_start, bodyEnd);
+
+  if (isNavSection(bodyLines)) return null;
+
+  const trimmed = bodyLines.slice(0, MAX_EMBED_LINES).join("\n").trim();
+  return trimmed ? `${pathStr}\n\n${trimmed}` : pathStr;
+}
+
+async function cmdIndex(rest: string[], v: Values): Promise<CliResult> {
+  const file = rest[0];
+  if (file == null) return err("lilmd index: missing <file>\n", 2);
+
+  const loaded = loadFile(file);
+  if ("code" in loaded) return loaded;
+  const { src } = loaded;
+
+  const sections = buildSections(scan(src), countLines(src));
+  if (sections.length === 0) {
+    return noMatch(`lilmd index: no headings found in '${file}'\n`);
+  }
+
+  const srcLines = src.split("\n");
+  const log = (msg: string) => process.stderr.write(msg + "\n");
+
+  const { loadEmbedder } = await import("./embed");
+  const embedder = await loadEmbedder({ log });
+
+  const { openIndex, hashContent } = await import("./vector");
+  const idx = await openIndex(INDEX_DB);
+  await idx.init(embedder.dimensions);
+  await idx.removeByFile(file);
+
+  log(`Indexing ${file} (${sections.length} sections)...`);
+  let indexed = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i]!;
+    const text = prepareEmbedText(sec, srcLines, sections);
+    if (text === null) { skipped++; continue; }
+
+    const hash = hashContent(text);
+    const [embedding] = await embedder.embed([text]);
+
+    await idx.insert(
+      {
+        file,
+        title: sec.title,
+        level: sec.level,
+        line_start: sec.line_start,
+        line_end: sec.line_end,
+        path: JSON.stringify(pathOf(sec)),
+        content_hash: hash,
+      },
+      embedding!,
+    );
+
+    indexed++;
+    if (indexed % LOG_EVERY === 0 || indexed === sections.length - skipped) {
+      log(`  [${indexed}/${sections.length - skipped}] embedded`);
+    }
+  }
+
+  idx.close();
+
+  const summary = skipped > 0
+    ? `Indexed ${indexed} sections from ${file} (${skipped} nav/link sections skipped)`
+    : `Indexed ${indexed} sections from ${file}`;
+  if (v.json) return ok(JSON.stringify({ file, sections: indexed, skipped }, null, 2));
+  return ok(summary);
+}
+
+async function cmdRetrieve(rest: string[], v: Values): Promise<CliResult> {
+  const query = rest[0];
+  if (query == null) return err("lilmd retrieve: missing <query>\n", 2);
+
+  const maxResults = readFlag(v, "max-results", 5);
+  if ("code" in maxResults) return maxResults;
+  const topK = maxResults.value ?? 5;
+
+  const log = (msg: string) => process.stderr.write(msg + "\n");
+
+  const { openIndex } = await import("./vector");
+  let idx;
+  try {
+    idx = await openIndex(INDEX_DB);
+  } catch {
+    return err(
+      "lilmd retrieve: no vector index found. Run 'lilmd index <file>' first.\n",
+      2,
+    );
+  }
+
+  const hasData = await idx.hasData();
+  if (!hasData) {
+    idx.close();
+    return err(
+      "lilmd retrieve: vector index is empty. Run 'lilmd index <file>' first.\n",
+      2,
+    );
+  }
+
+  const { loadEmbedder } = await import("./embed");
+  const embedder = await loadEmbedder({ log });
+  const [queryVec] = await embedder.embed([query]);
+
+  const results = await idx.search(queryVec!, topK);
+  idx.close();
+
+  if (results.length === 0) return noMatch("(no results)\n");
+
+  if (v.json) {
+    return ok(
+      JSON.stringify(
+        {
+          query,
+          results: results.map((r) => ({
+            score: +(1 - r.distance).toFixed(4),
+            file: r.file,
+            title: r.title,
+            level: r.level,
+            line_start: r.line_start,
+            line_end: r.line_end,
+            path: r.path,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+  }
+
+  const out: string[] = [];
+  for (const r of results) {
+    const score = (1 - r.distance).toFixed(4);
+    const hashes = "#".repeat(r.level);
+    out.push(`${score}  ${r.file}  L${r.line_start}-${r.line_end}  ${hashes} ${r.title}`);
   }
   return ok(out.join("\n"));
 }
