@@ -60,10 +60,10 @@ file.md  L1-450  12 headings
 # prints the contents of the lilmd section
 
 # descendant selector (any depth under the parent)
-> lilmd file.md "lilmd > Installation"
+> lilmd file.md "Getting Started > Installation"
 
 # direct child only
-> lilmd file.md "lilmd >> Installation"
+> lilmd file.md "Getting Started >> Installation"
 
 # level filter (H2 only)
 > lilmd file.md "##Installation"
