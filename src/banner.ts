@@ -10,6 +10,7 @@
  * lookup at runtime.
  */
 import terminalImage from "terminal-image";
+import chalk from "chalk";
 
 const LOGO_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAMgAAABMCAMAAAAfpwhiAAAAIGNIUk0AAHomAACAhAAA+gAAAIDo"
@@ -119,6 +120,28 @@ const LOGO_BASE64 =
  * terminal width. Returns `null` if terminal-image fails (e.g. very small
  * terminal or unsupported environment); callers should fall back silently.
  */
+/**
+ * Applies ANSI colors to the plain-text HELP string for interactive display.
+ * Only called when stdout is a TTY — plain text is preserved for pipes/scripts.
+ */
+export function colorHelp(help: string): string {
+  return (
+    help
+      // Title line: bold
+      .replace(/^(lilmd —.+)$/m, chalk.bold("$1"))
+      // Section headers: bold + underline
+      .replace(/^(\w.+:)$/gm, chalk.bold.underline("$1"))
+      // [experimental] tag: dim magenta
+      .replace(/(\[experimental\][^:\n]*)/g, chalk.dim.magenta("$1"))
+      // Subcommand: "lilmd <subcommand>" in cyan bold (but not bare "lilmd" with no subcommand)
+      .replace(/\blilmd\b( \w+)/g, chalk.cyan.bold("lilmd") + chalk.cyan("$1"))
+      // <placeholders>: yellow
+      .replace(/<[^>]+>/g, (m) => chalk.yellow(m))
+      // --flags: green
+      .replace(/--[\w-]+/g, (m) => chalk.green(m))
+  );
+}
+
 export async function renderBanner(): Promise<string | null> {
   try {
     const buf = Buffer.from(LOGO_BASE64, "base64");

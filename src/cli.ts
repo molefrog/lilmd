@@ -121,9 +121,10 @@ export async function run(argv: string[]): Promise<CliResult> {
     // dynamic import so the non-help cold-start path pays nothing.
     if (process.stdout.isTTY) {
       try {
-        const { renderBanner } = await import("./banner");
+        const { renderBanner, colorHelp } = await import("./banner");
         const banner = await renderBanner();
-        if (banner) return ok(banner + "\n" + HELP);
+        if (banner) return ok(banner + "\n" + colorHelp(HELP));
+        return ok(colorHelp(HELP));
       } catch {
         // Fall through to plain help on any failure.
       }
