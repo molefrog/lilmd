@@ -122,7 +122,8 @@ const LOGO_BASE64 =
 export async function renderBanner(): Promise<string | null> {
   try {
     const buf = Buffer.from(LOGO_BASE64, "base64");
-    return await terminalImage.buffer(buf, { width: "40%" });
+    const img = await terminalImage.buffer(buf, { width: "25%" });
+    return img + "\n";
   } catch {
     return null;
   }
