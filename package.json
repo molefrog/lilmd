@@ -39,6 +39,7 @@
     "@huggingface/transformers": "^4.0.1",
     "@libsql/client": "^0.17.2",
     "marked": "^15",
-    "marked-terminal": "^7"
+    "marked-terminal": "^7",
+    "terminal-image": "^4.2.0"
   }
 }
