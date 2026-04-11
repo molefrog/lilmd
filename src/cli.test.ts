@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -369,5 +369,443 @@ describe("cli: extras per review", () => {
     const r = await run(["ls", file, "/.+/", "--max-results", "1", "--json"]);
     const j = JSON.parse(r.stdout);
     expect(j.results).toHaveLength(1);
+  });
+});
+
+// ---- fixture with links and code blocks ------------------------------------
+
+const LINKS_SRC = `# Guide
+
+Intro with a [home page](https://example.com) link.
+
+## Install
+
+Run [brew](https://brew.sh) or [npm](https://npmjs.com).
+
+## API
+
+No links here.
+`;
+
+const CODE_SRC = `# Guide
+
+## Install
+
+\`\`\`bash
+npm install lilmd
+\`\`\`
+
+## Usage
+
+\`\`\`ts
+import { run } from "lilmd";
+\`\`\`
+
+\`\`\`
+plain block
+\`\`\`
+`;
+
+// ---- cli: links -------------------------------------------------------------
+
+describe("cli: links", () => {
+  let lfile: string;
+  beforeAll(() => {
+    lfile = join(dir, "links.md");
+    writeFileSync(lfile, LINKS_SRC);
+  });
+
+  test("extracts links from all sections", async () => {
+    const r = await run(["links", lfile]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("home page");
+    expect(r.stdout).toContain("https://example.com");
+    expect(r.stdout).toContain("brew");
+    expect(r.stdout).toContain("https://brew.sh");
+    expect(r.stdout).toContain("npm");
+  });
+
+  test("filters by selector", async () => {
+    const r = await run(["links", lfile, "Install"]);
+    expect(r.stdout).toContain("brew");
+    expect(r.stdout).not.toContain("home page");
+  });
+
+  test("no match exits 1 with friendly message", async () => {
+    const r = await run(["links", lfile, "API"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+
+  test("--json emits array of link objects", async () => {
+    const r = await run(["links", lfile, "--json"]);
+    const j = JSON.parse(r.stdout);
+    expect(Array.isArray(j)).toBe(true);
+    expect(j.length).toBeGreaterThan(0);
+    expect(j[0]).toHaveProperty("text");
+    expect(j[0]).toHaveProperty("url");
+    expect(j[0]).toHaveProperty("line");
+    expect(j[0]).toHaveProperty("section");
+  });
+});
+
+// ---- cli: code --------------------------------------------------------------
+
+describe("cli: code", () => {
+  let cfile: string;
+  beforeAll(() => {
+    cfile = join(dir, "code.md");
+    writeFileSync(cfile, CODE_SRC);
+  });
+
+  test("extracts all code blocks", async () => {
+    const r = await run(["code", cfile]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("npm install lilmd");
+    expect(r.stdout).toContain('import { run }');
+    expect(r.stdout).toContain("plain block");
+  });
+
+  test("--lang filters by language", async () => {
+    const r = await run(["code", cfile, "--lang", "ts"]);
+    expect(r.stdout).toContain('import { run }');
+    expect(r.stdout).not.toContain("npm install lilmd");
+  });
+
+  test("filters by selector", async () => {
+    const r = await run(["code", cfile, "Install"]);
+    expect(r.stdout).toContain("npm install lilmd");
+    expect(r.stdout).not.toContain('import { run }');
+  });
+
+  test("no match exits 1", async () => {
+    const r = await run(["code", cfile, "--lang", "python"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+
+  test("--json emits array with lang and body", async () => {
+    const r = await run(["code", cfile, "--json"]);
+    const j = JSON.parse(r.stdout);
+    expect(Array.isArray(j)).toBe(true);
+    const ts = j.find((b: { lang: string }) => b.lang === "ts");
+    expect(ts).toBeDefined();
+    expect(ts.body).toContain('import { run }');
+    expect(ts).toHaveProperty("line_start");
+  });
+});
+
+// ---- cli: set ---------------------------------------------------------------
+
+describe("cli: set", () => {
+  test("replaces section body in the file", async () => {
+    const wfile = join(dir, "set.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["set", wfile, "Install", "--body", "new content here"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("### Install");
+    expect(content).toContain("new content here");
+    expect(content).not.toContain("brew install lilmd");
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "set-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["set", wfile, "Install", "--body", "replacement", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("---");
+    expect(r.stdout).toContain("+++");
+    expect(r.stdout).toContain("-brew install lilmd");
+    expect(r.stdout).toContain("+replacement");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("brew install lilmd"); // file unchanged
+  });
+
+  test("no match exits 1", async () => {
+    const r = await run(["set", file, "nonexistent", "--body", "x"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+
+  test("missing --body is an error", async () => {
+    const r = await run(["set", file, "Install"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/--body/);
+  });
+});
+
+// ---- cli: append ------------------------------------------------------------
+
+describe("cli: append", () => {
+  test("appends content after section body", async () => {
+    const wfile = join(dir, "append.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["append", wfile, "Install", "--body", "extra line"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("brew install lilmd");
+    expect(content).toContain("extra line");
+    const brewIdx = content.indexOf("brew install lilmd");
+    const extraIdx = content.indexOf("extra line");
+    expect(extraIdx).toBeGreaterThan(brewIdx);
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "append-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["append", wfile, "Install", "--body", "appended", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("+appended");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).not.toContain("appended");
+  });
+});
+
+// ---- cli: insert ------------------------------------------------------------
+
+describe("cli: insert", () => {
+  test("inserts a new section after the matched section", async () => {
+    const wfile = join(dir, "insert.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["insert", wfile, "--after", "Install", "--body", "## New\n\nnew body"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    const installIdx = content.indexOf("### Install");
+    const newIdx = content.indexOf("## New");
+    expect(newIdx).toBeGreaterThan(installIdx);
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "insert-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["insert", wfile, "--after", "Install", "--body", "## New\n\nnew", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("+## New");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).not.toContain("## New");
+  });
+
+  test("missing --after is an error", async () => {
+    const r = await run(["insert", file, "--body", "x"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/--after/);
+  });
+});
+
+// ---- cli: rm ----------------------------------------------------------------
+
+describe("cli: rm", () => {
+  test("removes section and its descendants", async () => {
+    const wfile = join(dir, "rm.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["rm", wfile, "Getting Started"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).not.toContain("## Getting Started");
+    expect(content).not.toContain("### Install");
+    expect(content).not.toContain("brew install lilmd");
+    expect(content).toContain("## API");
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "rm-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["rm", wfile, "Install", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("-### Install");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("### Install");
+  });
+
+  test("no match exits 1", async () => {
+    const r = await run(["rm", file, "nonexistent"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+});
+
+// ---- cli: rename ------------------------------------------------------------
+
+describe("cli: rename", () => {
+  test("renames the heading in the file", async () => {
+    const wfile = join(dir, "rename.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["rename", wfile, "Install", "Setup"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("### Setup");
+    expect(content).not.toMatch(/^### Install$/m);
+    expect(content).toContain("brew install lilmd"); // body unchanged
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "rename-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["rename", wfile, "Install", "Setup", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("-### Install");
+    expect(r.stdout).toContain("+### Setup");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("### Install");
+  });
+
+  test("missing new name is an error", async () => {
+    const r = await run(["rename", file, "Install"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/new.*name|name/i);
+  });
+});
+
+// ---- cli: promote / demote --------------------------------------------------
+
+describe("cli: promote", () => {
+  test("decreases heading level of section and descendants", async () => {
+    const wfile = join(dir, "promote.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["promote", wfile, "Getting Started"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toMatch(/^# Getting Started$/m);
+    expect(content).toMatch(/^## Install$/m);
+    expect(content).toMatch(/^## Setup$/m);
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "promote-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["promote", wfile, "Install", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("-### Install");
+    expect(r.stdout).toContain("+## Install");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("### Install");
+  });
+});
+
+describe("cli: demote", () => {
+  test("increases heading level of section and descendants", async () => {
+    const wfile = join(dir, "demote.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["demote", wfile, "API"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toMatch(/^### API$/m);
+    expect(content).toMatch(/^#### read$/m);
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "demote-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["demote", wfile, "API", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("-## API");
+    expect(r.stdout).toContain("+### API");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toContain("## API");
+  });
+});
+
+// ---- cli: mv ----------------------------------------------------------------
+
+describe("cli: mv", () => {
+  test("moves section to be a child of target", async () => {
+    const wfile = join(dir, "mv.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["mv", wfile, "API", "Getting Started"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    // API should now be under Getting Started (level 3)
+    expect(content).toMatch(/^### API$/m);
+    const gsIdx = content.indexOf("## Getting Started");
+    const apiIdx = content.indexOf("### API");
+    expect(apiIdx).toBeGreaterThan(gsIdx);
+    expect(content).not.toMatch(/^## API$/m);
+  });
+
+  test("--dry-run shows diff without modifying file", async () => {
+    const wfile = join(dir, "mv-dry.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["mv", wfile, "Community", "API", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("---");
+    expect(r.stdout).toContain("+++");
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toMatch(/^## Community$/m);
+  });
+
+  test("no match for source section exits 1", async () => {
+    const r = await run(["mv", file, "nonexistent", "API"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+
+  test("missing destination is an error", async () => {
+    const r = await run(["mv", file, "API"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/destination|dest/i);
+  });
+
+  test("destination selector matches nothing exits 1", async () => {
+    const r = await run(["mv", file, "API", "nonexistent"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/no match/i);
+  });
+});
+
+// ---- cli: write command edge cases ------------------------------------------
+
+describe("cli: write edge cases", () => {
+  test("write command on non-existent file returns friendly error", async () => {
+    const r = await run(["set", "/does/not/exist.md", "x", "--body", "y"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/cannot open/);
+  });
+
+  test("set with multiple matches operates on the first match only", async () => {
+    // Selector '/.+/' matches every section; only the first (# lilmd) should change.
+    const wfile = join(dir, "set-multi.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["set", wfile, "/.+/", "--body", "replaced", "--dry-run"]);
+    expect(r.code).toBe(0);
+    // The diff should contain "+replaced" (the new body) exactly once.
+    const addedLines = r.stdout.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+    expect(addedLines).toHaveLength(1);
+    expect(addedLines[0]).toBe("+replaced");
+  });
+
+  test("promote at level 1 clamps (no-op on heading level)", async () => {
+    const wfile = join(dir, "promote-clamp.md");
+    writeFileSync(wfile, SRC);
+    const r = await run(["promote", wfile, "lilmd"]); // top-level H1
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toMatch(/^# lilmd$/m); // still level 1
+  });
+
+  test("demote at level 6 clamps (no-op on heading level)", async () => {
+    const src = `###### Deep\n\nbody\n`;
+    const wfile = join(dir, "demote-clamp.md");
+    writeFileSync(wfile, src);
+    const sections = (await import("./sections")).buildSections(
+      (await import("./scan")).scan(src),
+      (await import("./sections")).countLines(src),
+    );
+    const r = await run(["demote", wfile, "Deep"]);
+    expect(r.code).toBe(0);
+    const content = readFileSync(wfile, "utf8");
+    expect(content).toMatch(/^###### Deep$/m); // still level 6
+  });
+
+  test("write commands reject stdin ('-') as file", async () => {
+    const r = await run(["set", "-", "x", "--body", "y"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/stdin|'-'/i);
+  });
+
+  test("--dry-run output ends with a newline", async () => {
+    const r = await run(["rename", file, "Install", "Setup", "--dry-run"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout.endsWith("\n")).toBe(true);
   });
 });
