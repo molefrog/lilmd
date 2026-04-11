@@ -114,6 +114,20 @@ export async function run(argv: string[]): Promise<CliResult> {
 
   const { values, positionals } = parsed;
   if (values.help || positionals.length === 0) {
+    // Interactive help: prepend the lilmd logo as an image. Guarded by
+    // isTTY so pipes and non-interactive shells still get plain text
+    // (scripts that parse help output shouldn't see stray ANSI art).
+    // Banner rendering and the `terminal-image` dependency are behind a
+    // dynamic import so the non-help cold-start path pays nothing.
+    if (process.stdout.isTTY) {
+      try {
+        const { renderBanner } = await import("./banner");
+        const banner = await renderBanner();
+        if (banner) return ok(banner + "\n" + HELP);
+      } catch {
+        // Fall through to plain help on any failure.
+      }
+    }
     return ok(HELP);
   }
 
