@@ -1,6 +1,6 @@
 {
   "name": "lilmd",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "CLI for working with large MD files — Markdown is the new DB",
   "type": "module",
   "bin": {
