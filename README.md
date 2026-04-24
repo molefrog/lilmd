@@ -117,6 +117,17 @@ before applying.
 > lilmd promote|demote file.md "Section"    # shift heading level ±1
 ```
 
+### Vector search (experimental)
+
+```bash
+> lilmd index file.md                    # embed sections into .lilmd/vectors.db
+> lilmd retrieve "how do I install"      # semantic search; --max-results=N (default 5)
+
+# experimental: CLI and index format may change
+# uses Xenova/all-MiniLM-L6-v2 (384-dim, ~23MB, English-leaning) — small & fast, not SOTA
+# model downloads on first use, cached under ~/.cache/huggingface/
+```
+
 ### Output
 
 ```bash
