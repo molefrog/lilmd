@@ -125,7 +125,7 @@ before applying.
 
 # experimental: CLI and index format may change
 # uses Xenova/all-MiniLM-L6-v2 (384-dim, ~23MB, English-leaning) — small & fast, not SOTA
-# needs optional deps: @huggingface/transformers, @libsql/client
+# model downloads on first use, cached under ~/.cache/huggingface/
 ```
 
 ### Output
