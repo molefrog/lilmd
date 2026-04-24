@@ -117,6 +117,30 @@ before applying.
 > lilmd promote|demote file.md "Section"    # shift heading level ±1
 ```
 
+### Vector search (experimental)
+
+Semantic search across sections via a local libSQL vector index. Useful when
+the agent doesn't know the right heading to grep for.
+
+```bash
+# embed sections into .lilmd/vectors.db (re-run to refresh a file)
+> lilmd index file.md
+
+# semantic search; --max-results=N (default 5), --json for machine output
+> lilmd retrieve "how do I install"
+```
+
+Limitations:
+- **Experimental** — CLI surface and on-disk index format may change.
+- Embeddings come from `Xenova/all-MiniLM-L6-v2` (384-dim, quantized, ~23MB,
+  English-leaning). It's small and fast, not state-of-the-art; expect rough
+  ranking on technical jargon, code-heavy sections, or non-English content.
+- Requires optional deps: `@huggingface/transformers` and `@libsql/client`.
+  The model downloads on first use and is cached under `~/.cache/huggingface/`.
+- Pure-navigation sections (lists of links, ToCs) are skipped during indexing.
+- The index is per-cwd at `.lilmd/vectors.db`; `lilmd index` only refreshes
+  the file you pass — it doesn't auto-detect changes.
+
 ### Output
 
 ```bash
